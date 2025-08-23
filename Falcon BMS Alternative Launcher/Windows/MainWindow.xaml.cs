@@ -113,6 +113,9 @@ namespace FalconBMS.Launcher.Windows
                 return;
             }
             Diagnostics.Log("Post_OnInitialized complete.");
+
+            // TODO: test
+            OnlineSetupViewerWindow.ShowOnlineSetupViewerWindow();
         }
 
         protected override void OnSourceInitialized(EventArgs e)
