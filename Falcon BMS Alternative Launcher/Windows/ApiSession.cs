@@ -39,13 +39,22 @@ namespace FalconBMS.Launcher.Windows
 
         public async Task<bool> LoginAsync(string email, string password, bool rememberMe)
         {
-            // 1) GET /login and extract CSRF token
-            var loginHtml = await _client.GetStringAsync("/login").ConfigureAwait(false);
+            // 1) GET /login and extract CSRF token (Accept text/html to avoid 406)
+            string loginHtml;
+            using (var req = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUri, "/login")))
+            {
+                req.Headers.Accept.Clear();
+                req.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                var resp = await _client.SendAsync(req).ConfigureAwait(false);
+                resp.EnsureSuccessStatusCode();
+                loginHtml = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            }
+
             var m = Regex.Match(loginHtml, "name=\"authenticity_token\" value=\"([^\"]+)\"");
             if (!m.Success) throw new Exception("authenticity_token not found");
             var csrf = WebUtility.HtmlDecode(m.Groups[1].Value);
 
-            // 2) POST credentials
+            // 2) POST credentials (also Accept HTML)
             var form = new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string,string>("authenticity_token", csrf),
@@ -54,8 +63,15 @@ namespace FalconBMS.Launcher.Windows
                 new KeyValuePair<string,string>("remember_me", rememberMe ? "1" : "0"),
             });
 
-            var res = await _client.PostAsync("/login", form).ConfigureAwait(false);
-            if (!res.IsSuccessStatusCode) return false;
+            using (var req = new HttpRequestMessage(HttpMethod.Post, new Uri(BaseUri, "/login")))
+            {
+                req.Headers.Accept.Clear();
+                req.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                req.Headers.Referrer = new Uri(BaseUri, "/login");
+                req.Content = form;
+                var res = await _client.SendAsync(req).ConfigureAwait(false);
+                if (!res.IsSuccessStatusCode) return false;
+            }
 
             // A simple heuristic: we consider logged-in if any cookies were set for base domain
             var col = _cookies.GetCookies(BaseUri);

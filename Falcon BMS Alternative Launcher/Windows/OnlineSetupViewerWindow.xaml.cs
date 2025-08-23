@@ -51,21 +51,23 @@ namespace FalconBMS.Launcher.Windows
                 SetStatus("Loading...");
                 var url = "/api/xml_documents";
 
-                _http.DefaultRequestHeaders.Accept.Clear();
-                _http.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-                var resp = await _http.GetAsync(url).ConfigureAwait(false);
-                resp.EnsureSuccessStatusCode();
-                var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                var table = BuildDataTableFromJson(json);
-
-                await Dispatcher.InvokeAsync(() =>
+                using (var req = new HttpRequestMessage(HttpMethod.Get, new Uri(ApiSession.Instance.BaseUri, url)))
                 {
-                    if (DocumentsGrid != null)
-                        DocumentsGrid.ItemsSource = table?.DefaultView;
-                    SetStatus(table == null ? "No data" : $"Loaded {table.Rows.Count} items");
-                });
+                    req.Headers.Accept.Clear();
+                    req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+                    var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                    resp.EnsureSuccessStatusCode();
+                    var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                    var table = BuildDataTableFromJson(json);
+
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        if (DocumentsGrid != null)
+                            DocumentsGrid.ItemsSource = table?.DefaultView;
+                        SetStatus(table == null ? "No data" : $"Loaded {table.Rows.Count} items");
+                    });
+                }
             }
             catch (Exception ex)
             {
