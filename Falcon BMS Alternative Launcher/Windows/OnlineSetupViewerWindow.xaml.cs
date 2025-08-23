@@ -141,13 +141,30 @@ namespace FalconBMS.Launcher.Windows
             await RefreshAsync();
         }
 
-        private async void LoginButton_Click(object sender, RoutedEventArgs e)
+        private async void InlineLoginButton_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new LoginWindow { Owner = this };
-            var result = dlg.ShowDialog();
-            if (result == true)
+            try
             {
-                await RefreshAsync();
+                InlineLoginButton.IsEnabled = false;
+                SetStatus("Signing in...");
+                var ok = await ApiSession.Instance.LoginAsync(LoginEmailBox.Text, LoginPasswordBox.Password, LoginRememberBox.IsChecked == true);
+                if (ok)
+                {
+                    SetStatus("Login success");
+                    await RefreshAsync();
+                }
+                else
+                {
+                    SetStatus("Login failed");
+                }
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Login error: {ex.Message}");
+            }
+            finally
+            {
+                InlineLoginButton.IsEnabled = true;
             }
         }
 

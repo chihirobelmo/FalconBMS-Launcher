@@ -36,7 +36,14 @@
 			<StackPanel Orientation="Horizontal" DockPanel.Dock="Top" VerticalAlignment="Center">
 				<TextBlock Text="Online XML documents" FontSize="16" FontWeight="Bold" Margin="0,0,12,0" />
 				<Button x:Name="DownloadButton" Content="Download" Width="90" Height="26" Margin="0,0,8,0" Click="DownloadButton_Click" IsEnabled="False" />
-				<Button x:Name="LoginButton" Content="Login" Width="90" Height="26" Margin="0,0,8,0" Click="LoginButton_Click" />
+				<StackPanel Orientation="Horizontal" Margin="8,0,8,0" VerticalAlignment="Center">
+					<TextBlock Text="Email:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+					<TextBox x:Name="LoginEmailBox" Width="180" Margin="0,0,8,0"/>
+					<TextBlock Text="Password:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+					<PasswordBox x:Name="LoginPasswordBox" Width="140" Margin="0,0,8,0"/>
+					<CheckBox x:Name="LoginRememberBox" Content="Remember" VerticalAlignment="Center" Margin="0,0,8,0"/>
+					<Button x:Name="InlineLoginButton" Content="Login" Width="80" Height="26" Click="InlineLoginButton_Click"/>
+				</StackPanel>
 				<Button x:Name="LogoutButton" Content="Logout" Width="90" Height="26" Margin="0,0,8,0" Click="LogoutButton_Click" />
 				<Button x:Name="RefreshButton" Content="Refresh" Width="90" Height="26" Click="RefreshButton_Click" />
 			</StackPanel>
