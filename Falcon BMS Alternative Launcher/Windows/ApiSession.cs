@@ -83,5 +83,35 @@ namespace FalconBMS.Launcher.Windows
             foreach (Cookie c in _cookies.GetCookies(BaseUri))
                 yield return c;
         }
+
+        public async Task<bool> LogoutAsync()
+        {
+            // Fetch CSRF token from root page meta tag
+            string html;
+            using (var req = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUri, "/")))
+            {
+                req.Headers.Accept.Clear();
+                req.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                var resp = await _client.SendAsync(req).ConfigureAwait(false);
+                resp.EnsureSuccessStatusCode();
+                html = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            }
+
+            var m = Regex.Match(html, "name=\\\"csrf-token\\\" content=\\\"([^\\\"]*)\\\"");
+            if (!m.Success)
+                throw new Exception("csrf-token meta not found");
+            var token = WebUtility.HtmlDecode(m.Groups[1].Value);
+
+            using (var req = new HttpRequestMessage(HttpMethod.Delete, new Uri(BaseUri, "/logout")))
+            {
+                req.Headers.Accept.Clear();
+                req.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                req.Headers.Add("X-CSRF-Token", token);
+                var resp = await _client.SendAsync(req).ConfigureAwait(false);
+                // Many servers redirect after logout (302/303). Treat 2xx/3xx as success.
+                var code = (int)resp.StatusCode;
+                return code >= 200 && code < 400;
+            }
+        }
     }
 }

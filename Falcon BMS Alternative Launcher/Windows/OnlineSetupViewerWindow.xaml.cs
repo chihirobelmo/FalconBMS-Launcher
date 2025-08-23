@@ -151,6 +151,28 @@ namespace FalconBMS.Launcher.Windows
             }
         }
 
+        private async void LogoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                SetStatus("Logging out...");
+                var ok = await ApiSession.Instance.LogoutAsync();
+                if (ok)
+                {
+                    DocumentsGrid.ItemsSource = null;
+                    SetStatus("Logged out");
+                }
+                else
+                {
+                    SetStatus("Logout failed");
+                }
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Logout error: {ex.Message}");
+            }
+        }
+
         private void DocumentsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (DownloadButton == null) return;

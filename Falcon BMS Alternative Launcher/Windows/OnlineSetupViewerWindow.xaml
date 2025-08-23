@@ -37,6 +37,7 @@
 				<TextBlock Text="Online XML documents" FontSize="16" FontWeight="Bold" Margin="0,0,12,0" />
 				<Button x:Name="DownloadButton" Content="Download" Width="90" Height="26" Margin="0,0,8,0" Click="DownloadButton_Click" IsEnabled="False" />
 				<Button x:Name="LoginButton" Content="Login" Width="90" Height="26" Margin="0,0,8,0" Click="LoginButton_Click" />
+				<Button x:Name="LogoutButton" Content="Logout" Width="90" Height="26" Margin="0,0,8,0" Click="LogoutButton_Click" />
 				<Button x:Name="RefreshButton" Content="Refresh" Width="90" Height="26" Click="RefreshButton_Click" />
 			</StackPanel>
 		</DockPanel>
