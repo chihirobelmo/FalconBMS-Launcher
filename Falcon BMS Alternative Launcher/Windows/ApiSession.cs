@@ -97,21 +97,49 @@ namespace FalconBMS.Launcher.Windows
                 html = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
             }
 
-            var m = Regex.Match(html, "name=\\\"csrf-token\\\" content=\\\"([^\\\"]*)\\\"");
-            if (!m.Success)
+            var token = ExtractCsrfToken(html);
+            if (string.IsNullOrEmpty(token))
                 throw new Exception("csrf-token meta not found");
-            var token = WebUtility.HtmlDecode(m.Groups[1].Value);
 
             using (var req = new HttpRequestMessage(HttpMethod.Delete, new Uri(BaseUri, "/logout")))
             {
                 req.Headers.Accept.Clear();
                 req.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                req.Headers.Referrer = new Uri(BaseUri, "/");
                 req.Headers.Add("X-CSRF-Token", token);
                 var resp = await _client.SendAsync(req).ConfigureAwait(false);
                 // Many servers redirect after logout (302/303). Treat 2xx/3xx as success.
                 var code = (int)resp.StatusCode;
-                return code >= 200 && code < 400;
+                if (code >= 200 && code < 400) return true;
+
+                string body = null;
+                try { body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false); } catch { }
+                var reason = resp.ReasonPhrase;
+                throw new Exception($"Logout failed: HTTP {code} {reason}{(string.IsNullOrEmpty(body) ? string.Empty : ", body: " + Truncate(body, 200))}");
             }
+        }
+
+        private static string ExtractCsrfToken(string html)
+        {
+            if (string.IsNullOrEmpty(html)) return null;
+            // Match meta tag with name='csrf-token' regardless of attribute order and quote style
+            var patterns = new[]
+            {
+                "<meta[^>]*name=[\"']csrf-token[\"'][^>]*content=[\"']([^\"']+)[\"'][^>]*>",
+                "<meta[^>]*content=[\"']([^\"']+)[\"'][^>]*name=[\"']csrf-token[\"'][^>]*>"
+            };
+            foreach (var p in patterns)
+            {
+                var m = Regex.Match(html, p, RegexOptions.IgnoreCase);
+                if (m.Success) return WebUtility.HtmlDecode(m.Groups[1].Value);
+            }
+            return null;
+        }
+
+        private static string Truncate(string s, int max)
+        {
+            if (string.IsNullOrEmpty(s) || s.Length <= max) return s;
+            return s.Substring(0, max) + "...";
         }
     }
 }

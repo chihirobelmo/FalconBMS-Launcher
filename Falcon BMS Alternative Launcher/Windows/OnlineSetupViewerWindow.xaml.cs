@@ -157,15 +157,8 @@ namespace FalconBMS.Launcher.Windows
             {
                 SetStatus("Logging out...");
                 var ok = await ApiSession.Instance.LogoutAsync();
-                if (ok)
-                {
-                    DocumentsGrid.ItemsSource = null;
-                    SetStatus("Logged out");
-                }
-                else
-                {
-                    SetStatus("Logout failed");
-                }
+                DocumentsGrid.ItemsSource = null;
+                SetStatus(ok ? "Logged out" : "Logout failed");
             }
             catch (Exception ex)
             {
