@@ -31,6 +31,7 @@ namespace FalconBMS.Launcher.Windows
         {
             InitializeComponent();
             _ = RefreshAsync();
+            UpdateAuthUi();
         }
 
         public static void ShowOnlineSetupViewerWindow()
@@ -152,6 +153,7 @@ namespace FalconBMS.Launcher.Windows
                 {
                     SetStatus("Login success");
                     await RefreshAsync();
+                    UpdateAuthUi();
                 }
                 else
                 {
@@ -176,10 +178,28 @@ namespace FalconBMS.Launcher.Windows
                 var ok = await ApiSession.Instance.LogoutAsync();
                 DocumentsGrid.ItemsSource = null;
                 SetStatus(ok ? "Logged out" : "Logout failed");
+                UpdateAuthUi();
             }
             catch (Exception ex)
             {
                 SetStatus($"Logout error: {ex.Message}");
+            }
+        }
+
+        private void UpdateAuthUi()
+        {
+            try
+            {
+                // Consider 'logged in' if we have any cookies for BaseUri
+                bool loggedIn = ApiSession.Instance.GetAllCookies().GetEnumerator().MoveNext();
+                LoginPanel.Visibility = loggedIn ? Visibility.Collapsed : Visibility.Visible;
+                LogoutButton.Visibility = loggedIn ? Visibility.Visible : Visibility.Collapsed;
+            }
+            catch
+            {
+                // Fallback: show login controls if uncertain
+                LoginPanel.Visibility = Visibility.Visible;
+                LogoutButton.Visibility = Visibility.Collapsed;
             }
         }
 
