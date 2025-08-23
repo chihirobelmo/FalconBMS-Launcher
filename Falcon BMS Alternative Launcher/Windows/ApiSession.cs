@@ -86,37 +86,83 @@ namespace FalconBMS.Launcher.Windows
 
         public async Task<bool> LogoutAsync()
         {
-            // Fetch CSRF token from root page meta tag
-            string html;
-            using (var req = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUri, "/")))
+            // Fetch CSRF token from root (fallback to /login if not present)
+            string token = null;
+            foreach (var path in new[] { "/", "/login" })
             {
-                req.Headers.Accept.Clear();
-                req.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                var resp = await _client.SendAsync(req).ConfigureAwait(false);
-                resp.EnsureSuccessStatusCode();
-                html = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                try
+                {
+                    using (var req = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUri, path)))
+                    {
+                        req.Headers.Accept.Clear();
+                        req.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                        var resp = await _client.SendAsync(req).ConfigureAwait(false);
+                        resp.EnsureSuccessStatusCode();
+                        var html = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        token = ExtractCsrfToken(html);
+                        if (!string.IsNullOrEmpty(token)) break;
+                    }
+                }
+                catch { /* try next */ }
             }
 
-            var token = ExtractCsrfToken(html);
             if (string.IsNullOrEmpty(token))
                 throw new Exception("csrf-token meta not found");
 
-            using (var req = new HttpRequestMessage(HttpMethod.Delete, new Uri(BaseUri, "/logout")))
+            var tried = new List<string>();
+            foreach (var path in new[] { "/logout", "/users/sign_out" })
             {
-                req.Headers.Accept.Clear();
-                req.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                req.Headers.Referrer = new Uri(BaseUri, "/");
-                req.Headers.Add("X-CSRF-Token", token);
-                var resp = await _client.SendAsync(req).ConfigureAwait(false);
-                // Many servers redirect after logout (302/303). Treat 2xx/3xx as success.
-                var code = (int)resp.StatusCode;
-                if (code >= 200 && code < 400) return true;
+                var logoutUri = new Uri(BaseUri, path);
 
-                string body = null;
-                try { body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false); } catch { }
-                var reason = resp.ReasonPhrase;
-                throw new Exception($"Logout failed: HTTP {code} {reason}{(string.IsNullOrEmpty(body) ? string.Empty : ", body: " + Truncate(body, 200))}");
+                // Try DELETE first
+                using (var req = new HttpRequestMessage(HttpMethod.Delete, logoutUri))
+                {
+                    req.Headers.Accept.Clear();
+                    req.Headers.Accept.ParseAdd("*/*");
+                    req.Headers.Referrer = new Uri(BaseUri, "/");
+                    req.Headers.Add("X-CSRF-Token", token);
+                    var resp = await _client.SendAsync(req).ConfigureAwait(false);
+                    var code = (int)resp.StatusCode;
+                    tried.Add($"DELETE {path} -> {code}");
+                    if (code >= 200 && code < 400) return true;
+                    if (code != 404 && code != 405) // if not NotFound/MethodNotAllowed, don't try fallback blindly
+                    {
+                        string body = null;
+                        try { body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false); } catch { }
+                        var reason = resp.ReasonPhrase;
+                        throw new Exception($"Logout failed: HTTP {code} {reason}{(string.IsNullOrEmpty(body) ? string.Empty : ", body: " + Truncate(body, 200))}");
+                    }
+                }
+
+                // Fallback: POST with method override and authenticity_token param
+                var form = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string,string>("authenticity_token", token),
+                    new KeyValuePair<string,string>("_method", "delete"),
+                });
+
+                using (var req = new HttpRequestMessage(HttpMethod.Post, logoutUri))
+                {
+                    req.Headers.Accept.Clear();
+                    req.Headers.Accept.ParseAdd("*/*");
+                    req.Headers.Referrer = new Uri(BaseUri, "/");
+                    req.Headers.Add("X-CSRF-Token", token);
+                    req.Content = form;
+                    var resp = await _client.SendAsync(req).ConfigureAwait(false);
+                    var code = (int)resp.StatusCode;
+                    tried.Add($"POST {path} (_method=delete) -> {code}");
+                    if (code >= 200 && code < 400) return true;
+                    if (code != 404)
+                    {
+                        string body = null;
+                        try { body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false); } catch { }
+                        var reason = resp.ReasonPhrase;
+                        throw new Exception($"Logout failed: HTTP {code} {reason}{(string.IsNullOrEmpty(body) ? string.Empty : ", body: " + Truncate(body, 200))}");
+                    }
+                }
             }
+
+            throw new Exception("Logout failed: endpoints not found. Tried: " + string.Join(", ", tried));
         }
 
         private static string ExtractCsrfToken(string html)
