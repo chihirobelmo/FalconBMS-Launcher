@@ -25,10 +25,7 @@ namespace FalconBMS.Launcher.Windows
     /// </summary>
     public partial class OnlineSetupViewerWindow : ITimerSink
     {
-        private static readonly HttpClient _http = new HttpClient()
-        {
-            Timeout = TimeSpan.FromSeconds(10)
-        };
+    private HttpClient _http => ApiSession.Instance.Client;
 
         public OnlineSetupViewerWindow()
         {
@@ -52,7 +49,7 @@ namespace FalconBMS.Launcher.Windows
             try
             {
                 SetStatus("Loading...");
-                var url = "http://localhost:3000/api/xml_documents";
+                var url = "/api/xml_documents";
 
                 _http.DefaultRequestHeaders.Accept.Clear();
                 _http.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
@@ -142,6 +139,16 @@ namespace FalconBMS.Launcher.Windows
             await RefreshAsync();
         }
 
+        private async void LoginButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new LoginWindow { Owner = this };
+            var result = dlg.ShowDialog();
+            if (result == true)
+            {
+                await RefreshAsync();
+            }
+        }
+
         private void DocumentsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (DownloadButton == null) return;
@@ -191,10 +198,10 @@ namespace FalconBMS.Launcher.Windows
         private async Task DownloadDocumentAsync(string id)
         {
             SetStatus("Downloading...");
-            var url = $"http://localhost:3000/xml_documents/{Uri.EscapeDataString(id)}/download";
+            var url = $"/xml_documents/{Uri.EscapeDataString(id)}/download";
 
             // Accept redirects and try to honor filename via Content-Disposition
-            using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+            using (var request = new HttpRequestMessage(HttpMethod.Get, new Uri(ApiSession.Instance.BaseUri, url)))
             {
                 request.Headers.Accept.Clear();
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));

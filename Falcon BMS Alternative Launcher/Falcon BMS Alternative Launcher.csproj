@@ -167,6 +167,10 @@
     <Compile Include="Windows\OnlineSetupViewerWindow.xaml.cs">
       <DependentUpon>OnlineSetupViewerWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Windows\ApiSession.cs" />
+    <Compile Include="Windows\LoginWindow.xaml.cs">
+      <DependentUpon>LoginWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\RSSReader.cs" />
     <Page Include="Windows\AxisAssignWindow.xaml">
       <SubType>Designer</SubType>
@@ -200,6 +204,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="Windows\OnlineSetupViewerWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\LoginWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
