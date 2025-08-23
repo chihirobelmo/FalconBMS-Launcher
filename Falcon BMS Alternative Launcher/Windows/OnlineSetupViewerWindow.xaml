@@ -35,6 +35,7 @@
 		<DockPanel Grid.Row="0" Margin="8">
 			<StackPanel Orientation="Horizontal" DockPanel.Dock="Top" VerticalAlignment="Center">
 				<TextBlock Text="Online XML documents" FontSize="16" FontWeight="Bold" Margin="0,0,12,0" />
+				<Button x:Name="DownloadButton" Content="Download" Width="90" Height="26" Margin="0,0,8,0" Click="DownloadButton_Click" IsEnabled="False" />
 				<Button x:Name="RefreshButton" Content="Refresh" Width="90" Height="26" Click="RefreshButton_Click" />
 			</StackPanel>
 		</DockPanel>
@@ -49,6 +50,8 @@
 				  HeadersVisibility="Column"
 				  GridLinesVisibility="Horizontal"
 				  AlternatingRowBackground="#10FFFFFF"
+				  SelectionMode="Single"
+				  SelectionChanged="DocumentsGrid_SelectionChanged"
 				  />
 
 		<StatusBar Grid.Row="2">

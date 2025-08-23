@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -139,6 +140,98 @@ namespace FalconBMS.Launcher.Windows
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             await RefreshAsync();
+        }
+
+        private void DocumentsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DownloadButton == null) return;
+            DownloadButton.IsEnabled = DocumentsGrid?.SelectedItem != null;
+        }
+
+        private async void DownloadButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var selected = DocumentsGrid?.SelectedItem as DataRowView;
+                if (selected == null)
+                {
+                    SetStatus("No selection");
+                    return;
+                }
+
+                // Try common identifier property names
+                string id = GetValue(selected, new[] { "id", "Id", "_id" });
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    SetStatus("Could not determine document id");
+                    return;
+                }
+
+                await DownloadDocumentAsync(id);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Download error: {ex.Message}");
+            }
+        }
+
+        private static string GetValue(DataRowView row, IEnumerable<string> candidateColumns)
+        {
+            foreach (var name in candidateColumns)
+            {
+                if (row.DataView.Table.Columns.Contains(name))
+                {
+                    var v = row[name]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(v)) return v;
+                }
+            }
+            return null;
+        }
+
+        private async Task DownloadDocumentAsync(string id)
+        {
+            SetStatus("Downloading...");
+            var url = $"http://localhost:3000/xml_documents/{Uri.EscapeDataString(id)}/download";
+
+            // Accept redirects and try to honor filename via Content-Disposition
+            using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+            {
+                request.Headers.Accept.Clear();
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+
+                using (var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false))
+                {
+                    response.EnsureSuccessStatusCode();
+
+                    // Determine filename
+                    string fileName = TryGetFileName(response.Content.Headers) ?? $"document_{id}.xml";
+
+                    // Choose download path: user Downloads folder
+                    var downloads = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    var defaultDir = System.IO.Path.Combine(downloads, "Downloads");
+                    var targetDir = System.IO.Directory.Exists(defaultDir) ? defaultDir : downloads;
+                    var filePath = System.IO.Path.Combine(targetDir, fileName);
+
+                    using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    using (var fs = System.IO.File.Create(filePath))
+                    {
+                        await stream.CopyToAsync(fs).ConfigureAwait(false);
+                    }
+
+                    await Dispatcher.InvokeAsync(() => SetStatus($"Saved: {filePath}"));
+                }
+            }
+        }
+
+        private static string TryGetFileName(HttpContentHeaders headers)
+        {
+            var dispo = headers?.ContentDisposition;
+            if (dispo != null && !string.IsNullOrEmpty(dispo.FileNameStar))
+                return dispo.FileNameStar.Trim('"');
+            if (dispo != null && !string.IsNullOrEmpty(dispo.FileName))
+                return dispo.FileName.Trim('"');
+            return null;
         }
     }
 
