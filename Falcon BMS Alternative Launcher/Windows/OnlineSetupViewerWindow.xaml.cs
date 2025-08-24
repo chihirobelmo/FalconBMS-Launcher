@@ -34,7 +34,7 @@ namespace FalconBMS.Launcher.Windows
             "id", "description"
         };
 
-        public OnlineSetupViewerWindow()
+        public OnlineSetupViewerWindow(AppRegInfo appReg, DeviceControl deviceControl)
         {
             InitializeComponent();
             if (DocumentsGrid != null)
@@ -43,9 +43,9 @@ namespace FalconBMS.Launcher.Windows
             UpdateAuthUi();
         }
 
-        public static void ShowOnlineSetupViewerWindow()
+        public static void ShowOnlineSetupViewerWindow(AppRegInfo appReg, DeviceControl deviceControl)
         {
-            OnlineSetupViewerWindow ownWindow = new OnlineSetupViewerWindow();
+            OnlineSetupViewerWindow ownWindow = new OnlineSetupViewerWindow(appReg, deviceControl);
             Program.ShowDialogAndMakeActive(ownWindow);
         }
 
