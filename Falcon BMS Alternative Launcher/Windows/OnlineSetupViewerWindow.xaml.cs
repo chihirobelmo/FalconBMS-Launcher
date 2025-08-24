@@ -267,7 +267,7 @@ namespace FalconBMS.Launcher.Windows
             DownloadButton.IsEnabled = DocumentsGrid?.SelectedItem != null;
         }
 
-        private async void DownloadButton_Click(object sender, RoutedEventArgs e)
+    private async void DownloadButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -286,7 +286,10 @@ namespace FalconBMS.Launcher.Windows
                     return;
                 }
 
-                await DownloadDocumentAsync(id);
+                // Capture device name on UI thread to avoid cross-thread access later
+                string deviceName = GetValue(selected, new[] { "device_name", "DeviceName", "product_name", "ProductName", "name", "Name" });
+
+                await DownloadDocumentAsync(id, deviceName);
             }
             catch (Exception ex)
             {
@@ -307,13 +310,11 @@ namespace FalconBMS.Launcher.Windows
             return null;
         }
 
-        private async Task DownloadDocumentAsync(string id)
+        private async Task DownloadDocumentAsync(string id, string deviceName)
         {
             SetStatus("Downloading...");
-            // Use API endpoint; Authorization header is set globally when logged in
             var url = $"/api/xml_documents/{Uri.EscapeDataString(id)}/download";
 
-            // Accept redirects and try to honor filename via Content-Disposition
             using (var request = new HttpRequestMessage(HttpMethod.Get, new Uri(ApiSession.Instance.BaseUri, url)))
             {
                 request.Headers.Accept.Clear();
@@ -324,24 +325,60 @@ namespace FalconBMS.Launcher.Windows
                 {
                     response.EnsureSuccessStatusCode();
 
-                    // Determine filename
-                    string fileName = TryGetFileName(response.Content.Headers) ?? $"document_{id}.xml";
-
-                    // Choose download path: user Downloads folder
-                    var downloads = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    var defaultDir = System.IO.Path.Combine(downloads, "Downloads");
-                    var targetDir = System.IO.Directory.Exists(defaultDir) ? defaultDir : downloads;
-                    var filePath = System.IO.Path.Combine(targetDir, fileName);
-
+                    // Read XML content as string
+                    string xml;
                     using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                    using (var fs = System.IO.File.Create(filePath))
+                    using (var sr = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
                     {
-                        await stream.CopyToAsync(fs).ConfigureAwait(false);
+                        xml = await sr.ReadToEndAsync().ConfigureAwait(false);
                     }
 
-                    await Dispatcher.InvokeAsync(() => SetStatus($"Saved: {filePath}"));
+                    // Apply XML to matching JoyAssgn by sanitized name
+                    if (!string.IsNullOrWhiteSpace(deviceName))
+                    {
+                        var sanitized = RegexSanitize(deviceName);
+                        var joys = _deviceControl?.GetJoystickMappings();
+                        var target = joys?.FirstOrDefault(j => string.Equals(j.GetSanitizedProductName(), sanitized, StringComparison.OrdinalIgnoreCase));
+                        if (target != null)
+                        {
+                            try
+                            {
+                                target.LoadAxesButtonsAndHatsFromXml(xml);
+                                await Dispatcher.InvokeAsync(() =>
+                                {
+                                    // Ensure current avionics profile selection is applied to pointer wiring
+                                    target.SelectAvionicsProfile(DeviceControl.avionicsProfile);
+
+                                    // Trigger UI refresh if MainWindow is active
+                                    var mw = Program.activeWin as MainWindow;
+                                    mw?.RefreshDevices();
+
+                                    SetStatus($"Applied to device: {sanitized}");
+                                });
+                                return;
+                            }
+                            catch (Exception ex)
+                            {
+                                await Dispatcher.InvokeAsync(() => SetStatus($"XML適用失敗: {ex.Message}"));
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            await Dispatcher.InvokeAsync(() => SetStatus($"対応するデバイスが見つかりません: {sanitized}"));
+                            return;
+                        }
+                    }
+
+                    await Dispatcher.InvokeAsync(() => SetStatus("デバイス名が取得できませんでした"));
                 }
             }
+        }
+
+        private static string RegexSanitize(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return name;
+            return System.Text.RegularExpressions.Regex.Replace(name, @"[^A-Za-z0-9\~\`\[\]\{\}\-_\='\x20]", string.Empty);
         }
 
         private static string TryGetFileName(HttpContentHeaders headers)
