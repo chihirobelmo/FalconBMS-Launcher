@@ -37,7 +37,8 @@ namespace FalconBMS.Launcher.Windows
             InitializeComponent();
             if (DocumentsGrid != null)
                 DocumentsGrid.AutoGeneratingColumn += DocumentsGrid_AutoGeneratingColumn;
-            _ = RefreshAsync();
+            if (ApiSession.Instance.IsLoggedIn)
+                _ = RefreshAsync();
             UpdateAuthUi();
         }
 
@@ -64,6 +65,16 @@ namespace FalconBMS.Launcher.Windows
                     req.Headers.Accept.Clear();
                     req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
                     var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                    if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            DocumentsGrid.ItemsSource = null;
+                            SetStatus("ログインしてください。");
+                            UpdateAuthUi();
+                        });
+                        return;
+                    }
                     resp.EnsureSuccessStatusCode();
                     var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
 
@@ -221,8 +232,8 @@ namespace FalconBMS.Launcher.Windows
         {
             try
             {
-                // Consider 'logged in' if we have any cookies for BaseUri
-                bool loggedIn = ApiSession.Instance.GetAllCookies().GetEnumerator().MoveNext();
+                // With Bearer tokens, rely on ApiSession state
+                bool loggedIn = ApiSession.Instance.IsLoggedIn;
                 LoginPanel.Visibility = loggedIn ? Visibility.Collapsed : Visibility.Visible;
                 LogoutButton.Visibility = loggedIn ? Visibility.Visible : Visibility.Collapsed;
                 if (UploadPanel != null)
@@ -287,7 +298,8 @@ namespace FalconBMS.Launcher.Windows
         private async Task DownloadDocumentAsync(string id)
         {
             SetStatus("Downloading...");
-            var url = $"/xml_documents/{Uri.EscapeDataString(id)}/download";
+            // Use API endpoint; Authorization header is set globally when logged in
+            var url = $"/api/xml_documents/{Uri.EscapeDataString(id)}/download";
 
             // Accept redirects and try to honor filename via Content-Disposition
             using (var request = new HttpRequestMessage(HttpMethod.Get, new Uri(ApiSession.Instance.BaseUri, url)))
