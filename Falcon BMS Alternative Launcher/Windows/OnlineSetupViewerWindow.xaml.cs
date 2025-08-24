@@ -28,6 +28,7 @@ namespace FalconBMS.Launcher.Windows
     public partial class OnlineSetupViewerWindow : ITimerSink
     {
     private HttpClient _http => ApiSession.Instance.Client;
+        private readonly DeviceControl _deviceControl;
         // Columns to hide from the auto-generated DataGrid
         private readonly HashSet<string> _hiddenColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -37,6 +38,7 @@ namespace FalconBMS.Launcher.Windows
         public OnlineSetupViewerWindow(AppRegInfo appReg, DeviceControl deviceControl)
         {
             InitializeComponent();
+            _deviceControl = deviceControl;
             if (DocumentsGrid != null)
                 DocumentsGrid.AutoGeneratingColumn += DocumentsGrid_AutoGeneratingColumn;
             _ = RefreshAsync();
@@ -59,7 +61,15 @@ namespace FalconBMS.Launcher.Windows
             try
             {
                 SetStatus("Loading...");
-                var url = "/api/xml_documents";
+                // Build device filter from connected joysticks
+                var names = _deviceControl?.GetJoystickSanitizedNames() ?? Array.Empty<string>();
+                var filtered = names?.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? Array.Empty<string>();
+                string url = "/api/xml_documents";
+                if (filtered.Length > 0)
+                {
+                    var csv = string.Join(",", filtered);
+                    url += "?device_name=" + Uri.EscapeDataString(csv);
+                }
 
                 using (var req = new HttpRequestMessage(HttpMethod.Get, new Uri(ApiSession.Instance.BaseUri, url)))
                 {
