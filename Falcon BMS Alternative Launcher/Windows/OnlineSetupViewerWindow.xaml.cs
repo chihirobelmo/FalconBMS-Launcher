@@ -350,8 +350,11 @@ namespace FalconBMS.Launcher.Windows
                                     _deviceControl?.UpdateAvionicsProfile(DeviceControl.avionicsProfile);
 
                                     // Trigger UI refresh if MainWindow is active
-                                    var mw = Program.activeWin as MainWindow;
+                                    var mw = Program.mainWin as MainWindow;
                                     mw?.RefreshDevices();
+
+                                    // Persist changes so that main screen and subsequent sessions reflect the update
+                                    try { _deviceControl?.SaveXml(); } catch { }
 
                                     SetStatus($"Applied to device: {sanitized}");
                                 });
