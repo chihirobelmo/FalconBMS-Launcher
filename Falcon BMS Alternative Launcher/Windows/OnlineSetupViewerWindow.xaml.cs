@@ -346,8 +346,8 @@ namespace FalconBMS.Launcher.Windows
                                 target.LoadAxesButtonsAndHatsFromXml(xml);
                                 await Dispatcher.InvokeAsync(() =>
                                 {
-                                    // Ensure current avionics profile selection is applied to pointer wiring
-                                    target.SelectAvionicsProfile(DeviceControl.avionicsProfile);
+                                    // Ensure current avionics profile selection is applied across all devices
+                                    _deviceControl?.UpdateAvionicsProfile(DeviceControl.avionicsProfile);
 
                                     // Trigger UI refresh if MainWindow is active
                                     var mw = Program.activeWin as MainWindow;

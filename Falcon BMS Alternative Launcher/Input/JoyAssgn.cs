@@ -433,12 +433,25 @@ namespace FalconBMS.Launcher.Input
             {
                 JoyAssgn xmlJoy = (JoyAssgn)serializer.Deserialize(sr);
 
-                this.axis = xmlJoy.axis;
-                this.detentPosition = xmlJoy.detentPosition;
-
                 // Bugfix: Pad-up any downlevel XML files from the DX32 era (32 button-slots per device) to avoid index-out-of-bounds exceptions later.
                 // This can happen when user forward-ports an older xml file.. or, loads a Stock template that was crafted with 32 button slots.
                 xmlJoy.PatchDX32ButtonArray();
+
+                // Normalize and apply axes and detent
+                if (xmlJoy.axis == null || xmlJoy.axis.Length != this.axis.Length)
+                {
+                    AxAssgn[] newAxis = new AxAssgn[this.axis.Length];
+                    for (int i = 0; i < newAxis.Length; i++)
+                        newAxis[i] = (xmlJoy.axis != null && i < xmlJoy.axis.Length && xmlJoy.axis[i] != null)
+                            ? xmlJoy.axis[i]
+                            : new AxAssgn();
+                    this.axis = newAxis;
+                }
+                else
+                {
+                    this.axis = xmlJoy.axis;
+                }
+                this.detentPosition = xmlJoy.detentPosition ?? new DetentPosition();
 
                 // Bugfix: Due to the bug above, some beta-testers are left with XML files in a borken state.. discard the profile nodes.
                 if (xmlJoy.profileDefaultF16.dx != null && xmlJoy.profileDefaultF16.dx.Length < CommonConstants.DX_MAX_BUTTONS)
@@ -508,11 +521,24 @@ namespace FalconBMS.Launcher.Input
             {
                 JoyAssgn xmlJoy = (JoyAssgn)serializer.Deserialize(sr);
 
-                this.axis = xmlJoy.axis;
-                this.detentPosition = xmlJoy.detentPosition;
-
                 // Bugfix: Pad-up any downlevel XML files from the DX32 era (32 button-slots per device) to avoid index-out-of-bounds exceptions later.
                 xmlJoy.PatchDX32ButtonArray();
+
+                // Normalize and apply axes and detent
+                if (xmlJoy.axis == null || xmlJoy.axis.Length != this.axis.Length)
+                {
+                    AxAssgn[] newAxis = new AxAssgn[this.axis.Length];
+                    for (int i = 0; i < newAxis.Length; i++)
+                        newAxis[i] = (xmlJoy.axis != null && i < xmlJoy.axis.Length && xmlJoy.axis[i] != null)
+                            ? xmlJoy.axis[i]
+                            : new AxAssgn();
+                    this.axis = newAxis;
+                }
+                else
+                {
+                    this.axis = xmlJoy.axis;
+                }
+                this.detentPosition = xmlJoy.detentPosition ?? new DetentPosition();
 
                 // Bugfix: Due to the bug above, some users may have profile nodes in an inconsistent state.. discard them.
                 if (xmlJoy.profileDefaultF16.dx != null && xmlJoy.profileDefaultF16.dx.Length < CommonConstants.DX_MAX_BUTTONS)
