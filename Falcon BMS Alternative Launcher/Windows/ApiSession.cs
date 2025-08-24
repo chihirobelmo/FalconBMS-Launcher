@@ -17,11 +17,13 @@ namespace FalconBMS.Launcher.Windows
     private readonly CookieContainer _cookies;
     private readonly HttpClientHandler _handler;
     private readonly HttpClient _client;
+    private readonly HttpClient _publicClient;
     private string _bearerToken;
 
         public Uri BaseUri { get; }
     public HttpClient Client => _client;
     public bool IsLoggedIn => !string.IsNullOrEmpty(_bearerToken);
+    public HttpClient PublicClient => _publicClient;
 
         private ApiSession()
         {
@@ -39,6 +41,7 @@ namespace FalconBMS.Launcher.Windows
                 UseCookies = true
             };
             _client = new HttpClient(_handler) { BaseAddress = BaseUri, Timeout = TimeSpan.FromSeconds(15) };
+            _publicClient = new HttpClient(_handler) { BaseAddress = BaseUri, Timeout = TimeSpan.FromSeconds(15) };
         }
 
         public async Task<bool> LoginAsync(string email, string password, bool rememberMe)

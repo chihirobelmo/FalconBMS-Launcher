@@ -17,6 +17,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Microsoft.Win32;
+using System.IO;
 
 namespace FalconBMS.Launcher.Windows
 {
@@ -37,8 +39,7 @@ namespace FalconBMS.Launcher.Windows
             InitializeComponent();
             if (DocumentsGrid != null)
                 DocumentsGrid.AutoGeneratingColumn += DocumentsGrid_AutoGeneratingColumn;
-            if (ApiSession.Instance.IsLoggedIn)
-                _ = RefreshAsync();
+            _ = RefreshAsync();
             UpdateAuthUi();
         }
 
@@ -64,7 +65,8 @@ namespace FalconBMS.Launcher.Windows
                 {
                     req.Headers.Accept.Clear();
                     req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-                    var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                    // List API is public; use PublicClient (no Authorization header)
+                    var resp = await ApiSession.Instance.PublicClient.SendAsync(req).ConfigureAwait(false);
                     if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                     {
                         await Dispatcher.InvokeAsync(() =>
@@ -342,9 +344,15 @@ namespace FalconBMS.Launcher.Windows
             return null;
         }
 
-        private void UploadButton_Click(object sender, RoutedEventArgs e)
+        private async void UploadButton_Click(object sender, RoutedEventArgs e)
         {
-            // Upload flow not implemented yet; only basic validation and status update.
+            if (!ApiSession.Instance.IsLoggedIn)
+            {
+                SetStatus("アップロードにはログインが必要です。");
+                UpdateAuthUi();
+                return;
+            }
+
             var title = UploadTitleBox?.Text?.Trim();
             if (string.IsNullOrEmpty(title))
             {
@@ -353,8 +361,103 @@ namespace FalconBMS.Launcher.Windows
                 return;
             }
 
-            // Stub: no actual upload. Just acknowledge.
-            SetStatus($"Ready to upload: '{title}' (not implemented)");
+            // Ask user to choose an XML file
+            var ofd = new OpenFileDialog
+            {
+                Title = "アップロードするXMLファイルを選択",
+                Filter = "XML files (*.xml)|*.xml|All files (*.*)|*.*",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+
+            string filePath;
+            if (ofd.ShowDialog(this) == true)
+            {
+                filePath = ofd.FileName;
+            }
+            else
+            {
+                SetStatus("アップロードをキャンセルしました。");
+                return;
+            }
+
+            if (!File.Exists(filePath))
+            {
+                SetStatus("ファイルが見つかりません。");
+                return;
+            }
+
+            UploadButton.IsEnabled = false;
+            SetStatus("アップロード中...");
+
+            try
+            {
+                using (var form = new MultipartFormDataContent())
+                {
+                    // Basic fields
+                    form.Add(new StringContent(title, Encoding.UTF8), "xml_document[title]");
+                    // Optional description (server側で任意なら空でOK)
+                    form.Add(new StringContent("Uploaded via Launcher", Encoding.UTF8), "xml_document[description]");
+
+                    // File content
+                    using (var fs = File.OpenRead(filePath))
+                    {
+                        var fileContent = new StreamContent(fs);
+                        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/xml");
+                        form.Add(fileContent, "xml_document[xml_file]", System.IO.Path.GetFileName(filePath));
+
+                        using (var req = new HttpRequestMessage(HttpMethod.Post, new Uri(ApiSession.Instance.BaseUri, "/api/xml_documents")))
+                        {
+                            req.Headers.Accept.Clear();
+                            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                            req.Content = form;
+
+                            using (var resp = await ApiSession.Instance.Client.SendAsync(req).ConfigureAwait(false))
+                            {
+                                if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                                {
+                                    await Dispatcher.InvokeAsync(() =>
+                                    {
+                                        SetStatus("認証エラー: 再度ログインしてください。");
+                                        UpdateAuthUi();
+                                    });
+                                    return;
+                                }
+
+                                if (!resp.IsSuccessStatusCode)
+                                {
+                                    string body = null;
+                                    try { body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false); } catch { }
+                                    throw new Exception($"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase} {body}");
+                                }
+
+                                await Dispatcher.InvokeAsync(async () =>
+                                {
+                                    SetStatus("アップロード完了");
+                                    UploadTitleBox.Text = string.Empty;
+                                    // Refresh list (public endpoint)
+                                    await RefreshAsync();
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() => SetStatus($"アップロード失敗: {ex.Message}"));
+            }
+            finally
+            {
+                try
+                {
+                    await Dispatcher.InvokeAsync(() => UploadButton.IsEnabled = true);
+                }
+                catch
+                {
+                    // As a fallback, ignore if window is closing/disposed
+                }
+            }
         }
     }
 
