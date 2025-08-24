@@ -225,12 +225,16 @@ namespace FalconBMS.Launcher.Windows
                 bool loggedIn = ApiSession.Instance.GetAllCookies().GetEnumerator().MoveNext();
                 LoginPanel.Visibility = loggedIn ? Visibility.Collapsed : Visibility.Visible;
                 LogoutButton.Visibility = loggedIn ? Visibility.Visible : Visibility.Collapsed;
+                if (UploadPanel != null)
+                    UploadPanel.Visibility = loggedIn ? Visibility.Visible : Visibility.Collapsed;
             }
             catch
             {
                 // Fallback: show login controls if uncertain
                 LoginPanel.Visibility = Visibility.Visible;
                 LogoutButton.Visibility = Visibility.Collapsed;
+                if (UploadPanel != null)
+                    UploadPanel.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -324,6 +328,21 @@ namespace FalconBMS.Launcher.Windows
             if (dispo != null && !string.IsNullOrEmpty(dispo.FileName))
                 return dispo.FileName.Trim('"');
             return null;
+        }
+
+        private void UploadButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Upload flow not implemented yet; only basic validation and status update.
+            var title = UploadTitleBox?.Text?.Trim();
+            if (string.IsNullOrEmpty(title))
+            {
+                SetStatus("タイトルを入力してください。");
+                UploadTitleBox?.Focus();
+                return;
+            }
+
+            // Stub: no actual upload. Just acknowledge.
+            SetStatus($"Ready to upload: '{title}' (not implemented)");
         }
     }
 

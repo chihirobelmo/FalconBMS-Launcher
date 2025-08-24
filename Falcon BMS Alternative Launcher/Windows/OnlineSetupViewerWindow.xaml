@@ -44,6 +44,12 @@
 					<CheckBox x:Name="LoginRememberBox" Content="Remember" VerticalAlignment="Center" Margin="0,0,8,0"/>
 					<Button x:Name="InlineLoginButton" Content="Login" Width="80" Height="26" Click="InlineLoginButton_Click"/>
 				</StackPanel>
+				<!-- Visible only when logged in -->
+				<StackPanel x:Name="UploadPanel" Orientation="Horizontal" Margin="8,0,8,0" VerticalAlignment="Center" Visibility="Collapsed">
+					<TextBlock Text="Title:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+					<TextBox x:Name="UploadTitleBox" Width="220" Margin="0,0,8,0"/>
+					<Button x:Name="UploadButton" Content="Upload" Width="90" Height="26" Click="UploadButton_Click"/>
+				</StackPanel>
 				<Button x:Name="LogoutButton" Content="Logout" Width="90" Height="26" Margin="0,0,8,0" Click="LogoutButton_Click" />
 				<Button x:Name="RefreshButton" Content="Refresh" Width="90" Height="26" Click="RefreshButton_Click" />
 			</StackPanel>
