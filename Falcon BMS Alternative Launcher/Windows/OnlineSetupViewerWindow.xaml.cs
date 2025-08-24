@@ -26,10 +26,17 @@ namespace FalconBMS.Launcher.Windows
     public partial class OnlineSetupViewerWindow : ITimerSink
     {
     private HttpClient _http => ApiSession.Instance.Client;
+        // Columns to hide from the auto-generated DataGrid
+        private readonly HashSet<string> _hiddenColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "id", "description"
+        };
 
         public OnlineSetupViewerWindow()
         {
             InitializeComponent();
+            if (DocumentsGrid != null)
+                DocumentsGrid.AutoGeneratingColumn += DocumentsGrid_AutoGeneratingColumn;
             _ = RefreshAsync();
             UpdateAuthUi();
         }
@@ -65,7 +72,10 @@ namespace FalconBMS.Launcher.Windows
                     await Dispatcher.InvokeAsync(() =>
                     {
                         if (DocumentsGrid != null)
+                        {
                             DocumentsGrid.ItemsSource = table?.DefaultView;
+                            ApplyHiddenColumns();
+                        }
                         SetStatus(table == null ? "No data" : $"Loaded {table.Rows.Count} items");
                     });
                 }
@@ -140,6 +150,27 @@ namespace FalconBMS.Launcher.Windows
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             await RefreshAsync();
+        }
+
+        // Hide unwanted columns when auto-generating
+        private void DocumentsGrid_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
+        {
+            if (_hiddenColumns.Contains(e.PropertyName))
+            {
+                e.Cancel = true;
+                return;
+            }
+        }
+
+        // Ensure hidden columns are collapsed after binding or re-binding
+        private void ApplyHiddenColumns()
+        {
+            if (DocumentsGrid == null) return;
+            foreach (var col in DocumentsGrid.Columns)
+            {
+                var header = col.Header?.ToString() ?? string.Empty;
+                col.Visibility = _hiddenColumns.Contains(header) ? Visibility.Collapsed : Visibility.Visible;
+            }
         }
 
         private async void InlineLoginButton_Click(object sender, RoutedEventArgs e)
