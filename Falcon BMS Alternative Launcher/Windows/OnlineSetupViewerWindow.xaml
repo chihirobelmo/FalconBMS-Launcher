@@ -1,0 +1,78 @@
+﻿<Controls:MetroWindow x:Class="FalconBMS.Launcher.Windows.OnlineSetupViewerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FalconBMS.Launcher.Windows"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        mc:Ignorable="d"
+        GlowBrush="Black" BorderThickness="0"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize" SizeToContent="Width" Topmost="True" 
+        AllowDrop="True" ShowTitleBar="True" IsWindowDraggable="True" WindowStyle="None" Background="#bfc7cf"
+        Title="OnlineSetupViewerWindow" Height="450" Width="800">
+	<Window.Resources>
+		<Style TargetType="Label">
+			<Setter Property="Foreground" Value="#D0191919" />
+		</Style>
+		<Style TargetType="TextBlock">
+			<Setter Property="Foreground" Value="#D0191919" />
+		</Style>
+		<Style TargetType="Controls:MetroProgressBar">
+			<Setter Property="Background" Value="#80F0F0F0" />
+			<Setter Property="Foreground" Value="#D0191919" />
+			<Setter Property="BorderBrush" Value="#D0191919" />
+			<Setter Property="BorderThickness" Value="1" />
+		</Style>
+	</Window.Resources>
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+			<RowDefinition Height="Auto" />
+		</Grid.RowDefinitions>
+
+		<DockPanel Grid.Row="0" Margin="8">
+			<StackPanel Orientation="Horizontal" DockPanel.Dock="Top" VerticalAlignment="Center">
+				<TextBlock Text="Online XML documents" FontSize="16" FontWeight="Bold" Margin="0,0,12,0" />
+				<Button x:Name="DownloadButton" Content="Download" Width="90" Height="26" Margin="0,0,8,0" Click="DownloadButton_Click" IsEnabled="False" />
+				<StackPanel x:Name="LoginPanel" Orientation="Horizontal" Margin="8,0,8,0" VerticalAlignment="Center">
+					<TextBlock Text="Email:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+					<TextBox x:Name="LoginEmailBox" Width="180" Margin="0,0,8,0"/>
+					<TextBlock Text="Password:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+					<PasswordBox x:Name="LoginPasswordBox" Width="140" Margin="0,0,8,0"/>
+					<CheckBox x:Name="LoginRememberBox" Content="Remember" VerticalAlignment="Center" Margin="0,0,8,0"/>
+					<Button x:Name="InlineLoginButton" Content="Login" Width="80" Height="26" Click="InlineLoginButton_Click"/>
+				</StackPanel>
+				<!-- Visible only when logged in -->
+				<StackPanel x:Name="UploadPanel" Orientation="Horizontal" Margin="8,0,8,0" VerticalAlignment="Center" Visibility="Collapsed">
+					<TextBlock Text="Title:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+					<TextBox x:Name="UploadTitleBox" Width="220" Margin="0,0,8,0"/>
+					<Button x:Name="UploadButton" Content="Upload" Width="90" Height="26" Click="UploadButton_Click"/>
+				</StackPanel>
+				<Button x:Name="LogoutButton" Content="Logout" Width="90" Height="26" Margin="0,0,8,0" Click="LogoutButton_Click" />
+				<Button x:Name="RefreshButton" Content="Refresh" Width="90" Height="26" Click="RefreshButton_Click" />
+			</StackPanel>
+		</DockPanel>
+
+		<DataGrid x:Name="DocumentsGrid"
+				  Grid.Row="1"
+				  Margin="8"
+				  AutoGenerateColumns="True"
+				  IsReadOnly="True"
+				  CanUserAddRows="False"
+				  CanUserDeleteRows="False"
+				  HeadersVisibility="Column"
+				  GridLinesVisibility="Horizontal"
+				  AlternatingRowBackground="#10FFFFFF"
+				  SelectionMode="Single"
+				  SelectionChanged="DocumentsGrid_SelectionChanged"
+				  />
+
+		<StatusBar Grid.Row="2">
+			<StatusBarItem>
+				<TextBlock x:Name="StatusText" Text="Ready" />
+			</StatusBarItem>
+		</StatusBar>
+	</Grid>
+</Controls:MetroWindow>

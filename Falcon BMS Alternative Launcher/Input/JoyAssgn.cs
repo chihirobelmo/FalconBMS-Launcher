@@ -433,12 +433,25 @@ namespace FalconBMS.Launcher.Input
             {
                 JoyAssgn xmlJoy = (JoyAssgn)serializer.Deserialize(sr);
 
-                this.axis = xmlJoy.axis;
-                this.detentPosition = xmlJoy.detentPosition;
-
                 // Bugfix: Pad-up any downlevel XML files from the DX32 era (32 button-slots per device) to avoid index-out-of-bounds exceptions later.
                 // This can happen when user forward-ports an older xml file.. or, loads a Stock template that was crafted with 32 button slots.
                 xmlJoy.PatchDX32ButtonArray();
+
+                // Normalize and apply axes and detent
+                if (xmlJoy.axis == null || xmlJoy.axis.Length != this.axis.Length)
+                {
+                    AxAssgn[] newAxis = new AxAssgn[this.axis.Length];
+                    for (int i = 0; i < newAxis.Length; i++)
+                        newAxis[i] = (xmlJoy.axis != null && i < xmlJoy.axis.Length && xmlJoy.axis[i] != null)
+                            ? xmlJoy.axis[i]
+                            : new AxAssgn();
+                    this.axis = newAxis;
+                }
+                else
+                {
+                    this.axis = xmlJoy.axis;
+                }
+                this.detentPosition = xmlJoy.detentPosition ?? new DetentPosition();
 
                 // Bugfix: Due to the bug above, some beta-testers are left with XML files in a borken state.. discard the profile nodes.
                 if (xmlJoy.profileDefaultF16.dx != null && xmlJoy.profileDefaultF16.dx.Length < CommonConstants.DX_MAX_BUTTONS)
@@ -490,6 +503,78 @@ namespace FalconBMS.Launcher.Input
                     this.profileDefaultF16.dx = xmlJoy.profileDefaultF16.dx;
                     this.profileDefaultF16.pov = xmlJoy.profileDefaultF16.pov;
 
+                    this.profileF15ABCD.dx = xmlJoy.profileF15ABCD.dx;
+                    this.profileF15ABCD.pov = xmlJoy.profileF15ABCD.pov;
+                }
+            }
+            _Debug_ValidateCurrentProfile();
+            return;
+        }
+
+        public void LoadAxesButtonsAndHatsFromXml(string xmlContent)
+        {
+            if (string.IsNullOrWhiteSpace(xmlContent))
+                throw new ArgumentException("xmlContent");
+
+            XmlSerializer serializer = new XmlSerializer(typeof(JoyAssgn));
+            using (StringReader sr = new StringReader(xmlContent))
+            {
+                JoyAssgn xmlJoy = (JoyAssgn)serializer.Deserialize(sr);
+
+                // Bugfix: Pad-up any downlevel XML files from the DX32 era (32 button-slots per device) to avoid index-out-of-bounds exceptions later.
+                xmlJoy.PatchDX32ButtonArray();
+
+                // Normalize and apply axes and detent
+                if (xmlJoy.axis == null || xmlJoy.axis.Length != this.axis.Length)
+                {
+                    AxAssgn[] newAxis = new AxAssgn[this.axis.Length];
+                    for (int i = 0; i < newAxis.Length; i++)
+                        newAxis[i] = (xmlJoy.axis != null && i < xmlJoy.axis.Length && xmlJoy.axis[i] != null)
+                            ? xmlJoy.axis[i]
+                            : new AxAssgn();
+                    this.axis = newAxis;
+                }
+                else
+                {
+                    this.axis = xmlJoy.axis;
+                }
+                this.detentPosition = xmlJoy.detentPosition ?? new DetentPosition();
+
+                // Bugfix: Due to the bug above, some users may have profile nodes in an inconsistent state.. discard them.
+                if (xmlJoy.profileDefaultF16.dx != null && xmlJoy.profileDefaultF16.dx.Length < CommonConstants.DX_MAX_BUTTONS)
+                {
+                    xmlJoy.profileDefaultF16.dx = null;
+                    xmlJoy.profileDefaultF16.pov = null;
+                    xmlJoy.profileF15ABCD.dx = null;
+                    xmlJoy.profileF15ABCD.pov = null;
+                }
+
+                if (xmlJoy.profileDefaultF16.dx == null)
+                {
+                    // Upgrade-path from pre-F15 era
+                    this.dx = xmlJoy.dx;
+                    this.pov = xmlJoy.pov;
+                    this.profileDefaultF16.dx = xmlJoy.dx;
+                    this.profileDefaultF16.pov = xmlJoy.pov;
+
+                    xmlJoy.profileF15ABCD.dx = new DxAssgn[CommonConstants.DX_MAX_BUTTONS];
+                    for (int i = 0; i < CommonConstants.DX_MAX_BUTTONS; i++)
+                        xmlJoy.profileF15ABCD.dx[i] = new DxAssgn();
+
+                    xmlJoy.profileF15ABCD.pov = new PovAssgn[CommonConstants.DX_MAX_HATS];
+                    for (int i = 0; i < CommonConstants.DX_MAX_HATS; i++)
+                        xmlJoy.profileF15ABCD.pov[i] = new PovAssgn();
+
+                    this.profileF15ABCD.dx = xmlJoy.profileF15ABCD.dx;
+                    this.profileF15ABCD.pov = xmlJoy.profileF15ABCD.pov;
+                }
+                else
+                {
+                    // Not upgrade-path: wire to profileDefaultF16 by default
+                    this.dx = xmlJoy.profileDefaultF16.dx;
+                    this.pov = xmlJoy.profileDefaultF16.pov;
+                    this.profileDefaultF16.dx = xmlJoy.profileDefaultF16.dx;
+                    this.profileDefaultF16.pov = xmlJoy.profileDefaultF16.pov;
                     this.profileF15ABCD.dx = xmlJoy.profileF15ABCD.dx;
                     this.profileF15ABCD.pov = xmlJoy.profileF15ABCD.pov;
                 }

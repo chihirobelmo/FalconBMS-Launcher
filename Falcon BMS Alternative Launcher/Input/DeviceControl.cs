@@ -185,6 +185,17 @@ namespace FalconBMS.Launcher.Input
             return joyAssign.ToArray();
         }
 
+        public string[] GetJoystickSanitizedNames()
+        {
+            var names = new List<string>(joyAssign.Count);
+            foreach (var joy in joyAssign)
+            {
+                try { names.Add(joy.GetSanitizedProductName()); }
+                catch { names.Add(string.Empty); }
+            }
+            return names.ToArray();
+        }
+
         public void UpdateAvionicsProfile(string profile)
         {
             DeviceControl.avionicsProfile = profile;
